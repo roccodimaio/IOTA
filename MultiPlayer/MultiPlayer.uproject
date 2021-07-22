@@ -7,7 +7,16 @@
 		{
 			"Name": "MultiPlayer",
 			"Type": "Runtime",
-			"LoadingPhase": "Default"
+			"LoadingPhase": "Default",
+			"AdditionalDependencies": [
+				"Engine"
+			]
+		}
+	],
+	"Plugins": [
+		{
+			"Name": "Water",
+			"Enabled": true
 		}
 	]
 }
