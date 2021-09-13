@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "Engine/GameInstance.h"
 #include "MenuSystem/MenuInterface.h"
+#include "Interfaces/OnlineSessionInterface.h"
 #include "MultiplayerGameInstance.generated.h"
 
 /**
@@ -42,11 +43,19 @@ public:
 
 private:
 
+	// VARIABLES
+
 	TSubclassOf<class UUserWidget> MainMenuClass;
 
 	TSubclassOf<class UUserWidget> InGameMenuClass;
 
 	class UMainMenu* Menu;
+
+	IOnlineSessionPtr SessionInterface;
+
+	// FUNCTIONS
+
+	void OnCreateSessionComplete(FName SessionName, bool Success);
 
 
 

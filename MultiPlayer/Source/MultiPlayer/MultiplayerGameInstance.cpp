@@ -10,6 +10,9 @@
 #include "Kismet/KismetSystemLibrary.h"
 #include "Kismet/GameplayStatics.h"
 #include "MultiPlayerGameMode.h"
+#include "OnlineSubsystem.h"
+#include "OnlineSessionSettings.h"
+#include "Interfaces/OnlineSessionInterface.h"
 
 
 UMultiplayerGameInstance::UMultiplayerGameInstance(const FObjectInitializer& ObjectInitializer)
@@ -28,7 +31,24 @@ UMultiplayerGameInstance::UMultiplayerGameInstance(const FObjectInitializer& Obj
 
 void UMultiplayerGameInstance::Init()
 {
-	UE_LOG(LogTemp, Warning, TEXT("Found class %s"), *MainMenuClass->GetName());
+	IOnlineSubsystem* Subsystem = IOnlineSubsystem::Get();
+
+	if (Subsystem != nullptr)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("Found Subsystem %s"), *Subsystem->GetSubsystemName().ToString());
+		
+		SessionInterface = Subsystem->GetSessionInterface();
+
+		if (SessionInterface.IsValid())
+		{
+			SessionInterface->OnCreateSessionCompleteDelegates.AddUObject(this, &UMultiplayerGameInstance::OnCreateSessionComplete);
+		}
+	}
+	else
+	{
+		UE_LOG(LogTemp, Warning, TEXT("Found no Subsystem!"));
+	}
+	//UE_LOG(LogTemp, Warning, TEXT("Found class %s"), *MainMenuClass->GetName());
 }
 
 void UMultiplayerGameInstance::LoadMenu()
@@ -63,18 +83,15 @@ void UMultiplayerGameInstance::InGameLoadMenu()
 
 void UMultiplayerGameInstance::Host()
 {
-	UEngine* Engine = GetEngine();
+	UE_LOG(LogTemp, Warning, TEXT("In MultiplayerGameInstance->Host"));
 
-	if (!ensure(Engine != nullptr)) return;
-
-	Engine->AddOnScreenDebugMessage(0, 2, FColor::Green, TEXT("Hosting"));
-
-	// Server Travel 
-	UWorld* World = GetWorld();
-
-	if (!ensure(World != nullptr)) return;
-
-	World->ServerTravel("/Game/ThirdPersonCPP/Maps/ThirdPersonExampleMap?listen");
+	if (SessionInterface.IsValid())
+	{
+		UE_LOG(LogTemp, Warning, TEXT("In MultiplayerGameInstance->Host->SessionInterface.IsValid"));
+		FOnlineSessionSettings SessionSettings;
+		SessionInterface->CreateSession(0, TEXT("MySessionGame"), SessionSettings);
+	}
+	
 
 }
 
@@ -119,6 +136,7 @@ void UMultiplayerGameInstance::LoadMainMenu()
 			if (PC)
 			{
 				PC->ClientReturnToMainMenu("Back to main menu");
+				//PC->ClientReturnToMainMenuWithTextReason(FText& ReturnReason);
 			}
 		}
 	}
@@ -128,4 +146,26 @@ void UMultiplayerGameInstance::QuitGame()
 {
 	APlayerController* SpecificPlayer = GetWorld()->GetFirstPlayerController();
 	UKismetSystemLibrary::QuitGame(GetWorld(), SpecificPlayer, EQuitPreference::Quit, true);
+}
+
+void UMultiplayerGameInstance::OnCreateSessionComplete(FName SessionName, bool Success)
+{
+	if (!Success)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("Could not create sesson!"));
+		return;
+	}
+
+	UEngine* Engine = GetEngine();
+
+	if (!ensure(Engine != nullptr)) return;
+
+	Engine->AddOnScreenDebugMessage(0, 2, FColor::Green, TEXT("Hosting"));
+
+	// Server Travel 
+	UWorld* World = GetWorld();
+
+	if (!ensure(World != nullptr)) return;
+
+	World->ServerTravel("/Game/ThirdPersonCPP/Maps/ThirdPersonExampleMap?listen");
 }
