@@ -11,9 +11,10 @@
 #include "Kismet/GameplayStatics.h"
 #include "MultiPlayerGameMode.h"
 #include "OnlineSubsystem.h"
-#include "OnlineSessionSettings.h"
+
 #include "Interfaces/OnlineSessionInterface.h"
 
+const static FName SESSION_NAME = TEXT("MySessionGame");
 
 UMultiplayerGameInstance::UMultiplayerGameInstance(const FObjectInitializer& ObjectInitializer)
 {
@@ -42,6 +43,11 @@ void UMultiplayerGameInstance::Init()
 		if (SessionInterface.IsValid())
 		{
 			SessionInterface->OnCreateSessionCompleteDelegates.AddUObject(this, &UMultiplayerGameInstance::OnCreateSessionComplete);
+			SessionInterface->OnDestroySessionCompleteDelegates.AddUObject(this, &UMultiplayerGameInstance::OnDestroySessionComplete);
+			SessionInterface->OnFindSessionsCompleteDelegates.AddUObject(this, &UMultiplayerGameInstance::OnFindSessionComplete);
+			SessionInterface->OnJoinSessionCompleteDelegates.AddUObject(this, &UMultiplayerGameInstance::OnJoinSessionComplete);
+
+			
 		}
 	}
 	else
@@ -88,25 +94,38 @@ void UMultiplayerGameInstance::Host()
 	if (SessionInterface.IsValid())
 	{
 		UE_LOG(LogTemp, Warning, TEXT("In MultiplayerGameInstance->Host->SessionInterface.IsValid"));
-		FOnlineSessionSettings SessionSettings;
-		SessionInterface->CreateSession(0, TEXT("MySessionGame"), SessionSettings);
-	}
-	
+		
+		// Get name of an existing session
+		auto ExistingSession = SessionInterface->GetNamedSession(SESSION_NAME);
 
+		// Delete existing session if one exist (Can only host one session at a time) 
+		if (ExistingSession != nullptr)
+		{
+			SessionInterface->DestroySession(SESSION_NAME);
+		}
+		else // If no existing session exist then create one
+		{
+			CreateSession();
+		}
+	}
 }
 
-void UMultiplayerGameInstance::Join(const FString& Address)
+void UMultiplayerGameInstance::Join(uint32 Index)
 {
-	UEngine* Engine = GetEngine();
+	UE_LOG(LogTemp, Warning, TEXT("In MultiplayerGameInstance.cpp -> Join"));
 
-	if (!ensure(Engine != nullptr)) return;
-	Engine->AddOnScreenDebugMessage(0, 2, FColor::Green, FString::Printf(TEXT("Joining %s"), *Address));
+	if (!SessionInterface.IsValid()) return; 
 
-	APlayerController* PlayerController = GetFirstLocalPlayerController();
+	if (!SessionSearch.IsValid()) return; 
 
-	if (!ensure(PlayerController)) return;
+	if (Menu != nullptr)
+	{
+		//Menu->SetServerList({ "Test1", "Test2" });
 
-	PlayerController->ClientTravel(Address, ETravelType::TRAVEL_Absolute);
+	}
+
+	SessionInterface->JoinSession(0, SESSION_NAME, SessionSearch->SearchResults[Index]);
+
 }
 
 void UMultiplayerGameInstance::LoadMainMenu()
@@ -148,6 +167,43 @@ void UMultiplayerGameInstance::QuitGame()
 	UKismetSystemLibrary::QuitGame(GetWorld(), SpecificPlayer, EQuitPreference::Quit, true);
 }
 
+void UMultiplayerGameInstance::CreateSession()
+{
+	// Create a new session
+	if (SessionInterface.IsValid())
+	{
+		FOnlineSessionSettings SessionSettings;
+		
+		// If not using Steam (mostly for testing)
+		if (IOnlineSubsystem::Get()->GetSubsystemName() == "NULL")
+		{
+			SessionSettings.bIsLANMatch = true;
+		}
+		else
+		{
+			SessionSettings.bIsLANMatch = false;
+		}
+				
+		SessionSettings.NumPublicConnections = 2;
+		SessionSettings.bShouldAdvertise = true;
+		SessionSettings.bUsesPresence = true; 
+
+		SessionInterface->CreateSession(0, SESSION_NAME, SessionSettings);
+	}
+}
+void UMultiplayerGameInstance::RefreshServerList()
+{
+	SessionSearch = MakeShareable(new FOnlineSessionSearch());
+
+	if (SessionSearch.IsValid())
+	{
+		SessionSearch->bIsLanQuery = true;
+
+		UE_LOG(LogTemp, Warning, TEXT("Starting Find Session"));
+		SessionInterface->FindSessions(0, SessionSearch.ToSharedRef());
+	}
+}
+
 void UMultiplayerGameInstance::OnCreateSessionComplete(FName SessionName, bool Success)
 {
 	if (!Success)
@@ -168,4 +224,70 @@ void UMultiplayerGameInstance::OnCreateSessionComplete(FName SessionName, bool S
 	if (!ensure(World != nullptr)) return;
 
 	World->ServerTravel("/Game/ThirdPersonCPP/Maps/ThirdPersonExampleMap?listen");
+}
+
+void UMultiplayerGameInstance::OnDestroySessionComplete(FName SessionName, bool Success)
+{
+	// Once existing session is successfully deleted create a new session
+	if (Success)
+	{
+		CreateSession();
+	}
+}
+
+void UMultiplayerGameInstance::OnFindSessionComplete(bool Success)
+{
+	if (Success && SessionSearch.IsValid() && Menu != nullptr)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("Completed Find Session"));
+		SessionSearch->MaxSearchResults = 100;
+		SessionSearch->QuerySettings.Set(SEARCH_PRESENCE, true, EOnlineComparisonOp::Equals);
+		TArray<FServerData> ServerData;
+
+		// Populate server list for testing purposes
+		/*ServerNames.Add("Test Server 1");
+		ServerNames.Add("Test Server 2");
+		ServerNames.Add("Test Server 3");*/
+
+		for (const FOnlineSessionSearchResult& SearchResult : SessionSearch->SearchResults)
+		{
+			UE_LOG(LogTemp, Warning, TEXT("Found Session Named: %s"), *SearchResult.GetSessionIdStr());
+			FServerData Data;
+			Data.ServerName = SearchResult.GetSessionIdStr();
+			Data.CurrentPlayers = SearchResult.Session.NumOpenPublicConnections; // Number of current connections
+			Data.MaxPlayers = SearchResult.Session.SessionSettings.NumPublicConnections; // Number of max current connections available 
+			Data.HostUserName = SearchResult.Session.OwningUserName;
+			ServerData.Add(Data); 
+		}
+		
+		Menu->SetServerList(ServerData); 
+	}
+}
+
+
+
+void UMultiplayerGameInstance::OnJoinSessionComplete(FName SessionName, EOnJoinSessionCompleteResult::Type Result)
+{
+	
+	if (!SessionInterface.IsValid()) return;
+
+	FString Address; 
+
+	if (!SessionInterface->GetResolvedConnectString(SessionName, Address))
+	{
+		UE_LOG(LogTemp, Warning, TEXT("Cound not get ConnectString"));
+		return; 
+	}
+
+	UEngine* Engine = GetEngine();
+
+	if (!ensure(Engine != nullptr)) return;
+	Engine->AddOnScreenDebugMessage(0, 2, FColor::Green, FString::Printf(TEXT("Joining %s"), *Address));
+
+	APlayerController* PlayerController = GetFirstLocalPlayerController();
+
+	if (!ensure(PlayerController)) return;
+
+	PlayerController->ClientTravel(Address, ETravelType::TRAVEL_Absolute);
+	
 }

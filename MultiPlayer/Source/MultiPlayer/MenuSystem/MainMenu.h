@@ -8,6 +8,18 @@
 #include "MenuInterface.h"
 #include "MainMenu.generated.h"
 
+
+USTRUCT()
+struct FServerData
+{
+	GENERATED_BODY()
+
+	FString ServerName;
+	uint16 CurrentPlayers;
+	uint16 MaxPlayers;
+	FString HostUserName; 
+};
+
 /**
  * 
  */
@@ -16,6 +28,16 @@ class MULTIPLAYER_API UMainMenu : public UMenuWidget
 {
 	GENERATED_BODY()
 
+public:
+	UMainMenu(const FObjectInitializer& ObjectInitializer);
+
+	void SetServerList(TArray<FServerData> ServerData);
+
+	void SelectIndex(uint32 Index);
+
+private: 
+
+	// Variables and components
 	UPROPERTY(meta = (BindWidget))
 	class UButton* Host_Button;
 
@@ -41,7 +63,14 @@ class MULTIPLAYER_API UMainMenu : public UMenuWidget
 	class UWidget* MainMenu;
 
 	UPROPERTY(meta = (BindWidget))
-	class UEditableTextBox* IPAddressField;
+	class UPanelWidget* ServerList;
+
+	TSubclassOf<class UUserWidget> ServerRowClass;
+
+	TOptional<uint32> SelectedIndex;
+
+	//UPROPERTY(meta = (BindWidget))
+	//class UEditableTextBox* IPAddressField;
 
 /**
 public:
@@ -74,6 +103,8 @@ private:
 
 	UFUNCTION()
 	void ExitMainMenu();
+
+	void UpdateChildren(); 
 
 	//IMenuInterface* MenuInterface;
 	
