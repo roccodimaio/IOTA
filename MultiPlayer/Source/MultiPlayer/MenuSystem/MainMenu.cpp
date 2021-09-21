@@ -26,7 +26,9 @@ bool UMainMenu::Initialize()
 
 	if (!ensure(Host_Button != nullptr)) return false;
 
-	Host_Button->OnClicked.AddDynamic(this, &UMainMenu::HostServer);
+	Host_Button->OnClicked.AddDynamic(this, &UMainMenu::OpenHostMenu);
+
+	HostByServer_Button->OnClicked.AddDynamic(this, &UMainMenu::HostServer);
 
 	if (!ensure(Join_Button != nullptr)) return false;
 	Join_Button->OnClicked.AddDynamic(this, &UMainMenu::OpenJoinMenu);
@@ -115,8 +117,16 @@ void UMainMenu::HostServer()
 {
 	if (MenuInterface != nullptr)
 	{
-		MenuInterface->Host();
+		MenuInterface->Host("TestName");
 	}
+}
+
+void UMainMenu::OpenHostMenu()
+{
+	if (!ensure(MenuSwitcher != nullptr)) return;
+	if (!ensure(HostMenu != nullptr)) return;
+
+	MenuSwitcher->SetActiveWidget(HostMenu);
 }
 
 void UMainMenu::OpenJoinMenu()
@@ -190,7 +200,7 @@ void UMainMenu::SetServerList(TArray<FServerData> ServerData)
 
 		Row->ServerName->SetText(FText::FromString(TempServerData.ServerName));  // Populate ServerName in ServerRow
 		Row->HostUserName->SetText(FText::FromString(TempServerData.HostUserName)); // Populate HostUserName in Server Row
-		FString FractionText = FString::Printf(TEXT("&d / %d"), TempServerData.CurrentPlayers, TempServerData.MaxPlayers); // Format a string to show current players / max players
+		FString FractionText = FString::Printf(TEXT("%d / %d"), TempServerData.CurrentPlayers, TempServerData.MaxPlayers); // Format a string to show current players / max players
 		Row->ConnectionFraction->SetText(FText::FromString(FractionText)); // Populate current / max players in Server Row
 		Row->Setup(this, i);
 		

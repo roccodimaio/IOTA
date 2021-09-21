@@ -15,6 +15,8 @@
 #include "Interfaces/OnlineSessionInterface.h"
 
 const static FName SESSION_NAME = TEXT("MySessionGame");
+const static FName Server_NAME_SETTINGS_KEY = TEXT("ServerName");
+
 
 UMultiplayerGameInstance::UMultiplayerGameInstance(const FObjectInitializer& ObjectInitializer)
 {
@@ -87,9 +89,11 @@ void UMultiplayerGameInstance::InGameLoadMenu()
 	InGameMenu->SetMenuInterface(this);
 }
 
-void UMultiplayerGameInstance::Host()
+void UMultiplayerGameInstance::Host(FString ServerName)
 {
 	UE_LOG(LogTemp, Warning, TEXT("In MultiplayerGameInstance->Host"));
+	
+	DesiredServerName = ServerName;
 
 	if (SessionInterface.IsValid())
 	{
@@ -187,6 +191,7 @@ void UMultiplayerGameInstance::CreateSession()
 		SessionSettings.NumPublicConnections = 2;
 		SessionSettings.bShouldAdvertise = true;
 		SessionSettings.bUsesPresence = true; 
+		SessionSettings.Set(Server_NAME_SETTINGS_KEY, DesiredServerName, EOnlineDataAdvertisementType::ViaOnlineServiceAndPing);  // Set Server / Session Name
 
 		SessionInterface->CreateSession(0, SESSION_NAME, SessionSettings);
 	}
@@ -253,10 +258,19 @@ void UMultiplayerGameInstance::OnFindSessionComplete(bool Success)
 		{
 			UE_LOG(LogTemp, Warning, TEXT("Found Session Named: %s"), *SearchResult.GetSessionIdStr());
 			FServerData Data;
-			Data.ServerName = SearchResult.GetSessionIdStr();
-			Data.CurrentPlayers = SearchResult.Session.NumOpenPublicConnections; // Number of current connections
 			Data.MaxPlayers = SearchResult.Session.SessionSettings.NumPublicConnections; // Number of max current connections available 
+			Data.CurrentPlayers = Data.MaxPlayers - SearchResult.Session.NumOpenPublicConnections; // Number of max connects available - Number of connections available
 			Data.HostUserName = SearchResult.Session.OwningUserName;
+			FString ServerName;
+			if (SearchResult.Session.SessionSettings.Get(Server_NAME_SETTINGS_KEY, ServerName))
+			{
+				Data.ServerName = ServerName;
+			}
+			else
+			{
+				Data.ServerName = "Could not find server name!";
+			}
+
 			ServerData.Add(Data); 
 		}
 		

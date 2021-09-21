@@ -30,7 +30,7 @@ public:
 	void InGameLoadMenu();
 
 	UFUNCTION(Exec) // Allows function to be access from Console 
-	void Host() override;
+	void Host(FString ServerName) override;
 
 	UFUNCTION(Exec)
 	void Join(uint32 Index) override;
@@ -58,6 +58,8 @@ private:
 	IOnlineSessionPtr SessionInterface;
 
 	TSharedPtr<class FOnlineSessionSearch> SessionSearch;
+
+	class FString DesiredServerName; 
 
 	// FUNCTIONS
 
