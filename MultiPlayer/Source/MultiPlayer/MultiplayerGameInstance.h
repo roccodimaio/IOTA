@@ -44,6 +44,8 @@ public:
 	UFUNCTION()
 	void RefreshServerList() override;
 
+	void StartSession();
+
 
 private:
 
@@ -68,6 +70,7 @@ private:
 	void OnFindSessionComplete(bool Success);
 	void CreateSession();
 	void OnJoinSessionComplete(FName SessionName, EOnJoinSessionCompleteResult::Type Result);
+	void OnNetworkFailure(UWorld* World, UNetDriver* NetDriver, ENetworkFailure::Type FailureType, const FString& ErrorString);
 
 
 

@@ -14,7 +14,7 @@
 
 #include "Interfaces/OnlineSessionInterface.h"
 
-const static FName SESSION_NAME = TEXT("MySessionGame");
+const static FName SESSION_NAME = NAME_GameSession;
 const static FName Server_NAME_SETTINGS_KEY = TEXT("ServerName");
 
 
@@ -48,8 +48,6 @@ void UMultiplayerGameInstance::Init()
 			SessionInterface->OnDestroySessionCompleteDelegates.AddUObject(this, &UMultiplayerGameInstance::OnDestroySessionComplete);
 			SessionInterface->OnFindSessionsCompleteDelegates.AddUObject(this, &UMultiplayerGameInstance::OnFindSessionComplete);
 			SessionInterface->OnJoinSessionCompleteDelegates.AddUObject(this, &UMultiplayerGameInstance::OnJoinSessionComplete);
-
-			
 		}
 	}
 	else
@@ -57,6 +55,11 @@ void UMultiplayerGameInstance::Init()
 		UE_LOG(LogTemp, Warning, TEXT("Found no Subsystem!"));
 	}
 	//UE_LOG(LogTemp, Warning, TEXT("Found class %s"), *MainMenuClass->GetName());
+
+	if (GEngine != nullptr)
+	{
+		GEngine->OnNetworkFailure().AddUObject(this, &UMultiplayerGameInstance::OnNetworkFailure);
+	}
 }
 
 void UMultiplayerGameInstance::LoadMenu()
@@ -122,12 +125,6 @@ void UMultiplayerGameInstance::Join(uint32 Index)
 
 	if (!SessionSearch.IsValid()) return; 
 
-	if (Menu != nullptr)
-	{
-		//Menu->SetServerList({ "Test1", "Test2" });
-
-	}
-
 	SessionInterface->JoinSession(0, SESSION_NAME, SessionSearch->SearchResults[Index]);
 
 }
@@ -188,7 +185,7 @@ void UMultiplayerGameInstance::CreateSession()
 			SessionSettings.bIsLANMatch = false;
 		}
 				
-		SessionSettings.NumPublicConnections = 2;
+		SessionSettings.NumPublicConnections = 5;
 		SessionSettings.bShouldAdvertise = true;
 		SessionSettings.bUsesPresence = true; 
 		SessionSettings.Set(Server_NAME_SETTINGS_KEY, DesiredServerName, EOnlineDataAdvertisementType::ViaOnlineServiceAndPing);  // Set Server / Session Name
@@ -206,6 +203,14 @@ void UMultiplayerGameInstance::RefreshServerList()
 
 		UE_LOG(LogTemp, Warning, TEXT("Starting Find Session"));
 		SessionInterface->FindSessions(0, SessionSearch.ToSharedRef());
+	}
+}
+
+void UMultiplayerGameInstance::StartSession()
+{
+	if (SessionInterface.IsValid())
+	{
+		SessionInterface->StartSession(SESSION_NAME);
 	}
 }
 
@@ -227,8 +232,7 @@ void UMultiplayerGameInstance::OnCreateSessionComplete(FName SessionName, bool S
 	UWorld* World = GetWorld();
 
 	if (!ensure(World != nullptr)) return;
-
-	World->ServerTravel("/Game/ThirdPersonCPP/Maps/ThirdPersonExampleMap?listen");
+	World->ServerTravel("/Game/_Levels/Lobby/Lobby?listen");
 }
 
 void UMultiplayerGameInstance::OnDestroySessionComplete(FName SessionName, bool Success)
@@ -278,8 +282,6 @@ void UMultiplayerGameInstance::OnFindSessionComplete(bool Success)
 	}
 }
 
-
-
 void UMultiplayerGameInstance::OnJoinSessionComplete(FName SessionName, EOnJoinSessionCompleteResult::Type Result)
 {
 	
@@ -304,4 +306,9 @@ void UMultiplayerGameInstance::OnJoinSessionComplete(FName SessionName, EOnJoinS
 
 	PlayerController->ClientTravel(Address, ETravelType::TRAVEL_Absolute);
 	
+}
+
+void UMultiplayerGameInstance::OnNetworkFailure(UWorld* World, UNetDriver* NetDriver, ENetworkFailure::Type FailureType, const FString& ErrorString)
+{
+	LoadMainMenu();
 }

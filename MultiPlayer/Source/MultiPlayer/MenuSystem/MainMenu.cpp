@@ -25,9 +25,12 @@ bool UMainMenu::Initialize()
 	if(!Success) return false;
 
 	if (!ensure(Host_Button != nullptr)) return false;
-
 	Host_Button->OnClicked.AddDynamic(this, &UMainMenu::OpenHostMenu);
 
+	if (!ensure(CancelHostMenu_Button != nullptr)) return false;
+	CancelHostMenu_Button->OnClicked.AddDynamic(this, &UMainMenu::OpenMainMenu);
+
+	if (!ensure(HostByServer_Button != nullptr)) return false;
 	HostByServer_Button->OnClicked.AddDynamic(this, &UMainMenu::HostServer);
 
 	if (!ensure(Join_Button != nullptr)) return false;
@@ -42,6 +45,9 @@ bool UMainMenu::Initialize()
 	if (!ensure(ExitMainMenu_Button != nullptr)) return false; 
 	ExitMainMenu_Button->OnClicked.AddDynamic(this, &UMainMenu::ExitMainMenu);
 
+	if (!ensure(ServerHostName != nullptr)) return false; 
+	ServerHostName->OnTextChanged.AddDynamic(this, &UMainMenu::ValidateServerNameText);
+	
 	return true; 
 }
 
@@ -115,9 +121,11 @@ void UMainMenu::OnLevelRemovedFromWorld(ULevel* InLevel, UWorld* InWorld)
 
 void UMainMenu::HostServer()
 {
+	
 	if (MenuInterface != nullptr)
 	{
-		MenuInterface->Host("TestName");
+		FString ServerName = ServerHostName->Text.ToString();
+		MenuInterface->Host(ServerName);
 	}
 }
 
@@ -168,6 +176,22 @@ void UMainMenu::UpdateChildren()
 			Row->Selected = (SelectedIndex.IsSet() && SelectedIndex.GetValue() == i);
 		}
 	}
+}
+
+void UMainMenu::ValidateServerNameText(const FText& Text)
+{
+	FString InString = Text.ToString();
+	int32 InStringLength = InString.Len();
+
+	if (InStringLength > ServerName_MaxCharacters)
+	{
+		// UE_LOG(LogTemp, Warning, TEXT("Maxing Out... InString length %d characters!!!"), InStringLength);
+		FString OutString = InString.LeftChop(1);
+		FText OutText = FText::FromString(OutString);
+		ServerHostName->SetText(OutText);
+	}
+
+	return;
 }
 
 void UMainMenu::JoinServer()

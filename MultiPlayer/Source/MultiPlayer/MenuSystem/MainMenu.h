@@ -29,6 +29,12 @@ class MULTIPLAYER_API UMainMenu : public UMenuWidget
 	GENERATED_BODY()
 
 public:
+	
+	// VARIABLES
+	UPROPERTY(EditAnywhere)
+	int32 ServerName_MaxCharacters = 12;
+		
+	// FUNCTIONS
 	UMainMenu(const FObjectInitializer& ObjectInitializer);
 
 	void SetServerList(TArray<FServerData> ServerData);
@@ -43,6 +49,9 @@ private:
 
 	UPROPERTY(meta = (BindWidget))
 	class UButton* HostByServer_Button;
+
+	UPROPERTY(meta = (BindWidget))
+	class UButton* CancelHostMenu_Button;
 
 	UPROPERTY(meta = (BindWidget))
 	class UButton* Join_Button;
@@ -67,6 +76,9 @@ private:
 
 	UPROPERTY(meta = (BindWidget))
 	class UWidget* MainMenu;
+
+	UPROPERTY(meta = (BindWidget))
+	class UEditableTextBox* ServerHostName;
 
 	UPROPERTY(meta = (BindWidget))
 	class UPanelWidget* ServerList;
@@ -114,6 +126,9 @@ private:
 	void ExitMainMenu();
 
 	void UpdateChildren(); 
+
+	UFUNCTION()
+	void ValidateServerNameText(const FText& Text);
 
 	//IMenuInterface* MenuInterface;
 	
